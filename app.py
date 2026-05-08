@@ -93,7 +93,11 @@ class AlibabaScraperGUI:
 
         self.all_results = []
         self.is_scraping = False
-        self.json_update_counter = 0  # JSON更新计数器，控制更新频率
+        self.json_update_counter = 0
+
+        # 商家筛选相关属性
+        self.filter_keyword = ""
+        self.filtered_results = []
 
         self.create_control_panel()
         self.create_display_area()
@@ -108,9 +112,7 @@ class AlibabaScraperGUI:
     def on_data_collected(self, data):
         """数据采集回调"""
         self.all_results.append(data)
-        # 添加到表格
         self.root.after(0, lambda: self.add_to_table(data))
-        # 实时更新JSON显示
         self.root.after(0, self.update_json_view)
 
     def on_progress(self, current, total, page, async_num, items_count):
@@ -122,8 +124,31 @@ class AlibabaScraperGUI:
         self.root.after(0, lambda: self.on_scrape_finished(total_items))
 
     def create_control_panel(self):
-        """创建控制面板"""
-        control_frame = tk.LabelFrame(self.main_frame, text="采集控制", bg='#f0f0f0', font=("微软雅黑", 12, "bold"))
+        """创建控制面板（顶部导航栏 + 参数设置区）"""
+        # ----- 顶部导航栏 -----
+        nav_frame = tk.Frame(self.main_frame, height=40)
+        nav_frame.pack(fill=tk.X, pady=(0, 5))
+        nav_frame.pack_propagate(False)
+
+        # 左侧：采集控制标题
+        self.control_button = tk.Button(nav_frame, text="采集控制", font=("微软雅黑", 10, "bold"),
+                                        bg='#2c3e50', fg='white', relief='raised', bd=2, padx=3, pady=2,
+                                         cursor="hand2")
+        self.control_button.pack(side=tk.LEFT, padx=5)
+
+        # 更新程序按钮（导航栏风格）
+        self.update_button = tk.Button(nav_frame, text="更新程序", command=self.run_update_script,
+                                       bg='#2c3e50', fg='white', font=("微软雅黑", 10, "bold"),
+                                       relief=tk.RAISED, bd=2, padx=3, pady=2, cursor="hand2")
+        self.update_button.pack(side=tk.LEFT, padx=5)
+
+        # 可选：添加一个装饰分隔线
+        separator = ttk.Separator(self.main_frame, orient='horizontal')
+        separator.pack(fill=tk.X, pady=(0, 5))
+
+        # ----- 参数设置区域（原控制面板主体）-----
+        control_frame = tk.LabelFrame(self.main_frame, text="参数设置", bg='#f0f0f0',
+                                      font=("微软雅黑", 10), padx=5, pady=5)
         control_frame.pack(fill=tk.X, padx=5, pady=5)
 
         # 第一行：输入参数
@@ -153,7 +178,7 @@ class AlibabaScraperGUI:
         self.async_count.delete(0, 'end')
         self.async_count.insert(0, '6')
 
-        # 第二行：按钮
+        # 第二行：操作按钮
         row2 = tk.Frame(control_frame, bg='#f0f0f0')
         row2.pack(fill=tk.X, padx=5, pady=5)
 
@@ -177,13 +202,11 @@ class AlibabaScraperGUI:
                                      relief=tk.RAISED, bd=2)
         self.save_button.pack(side=tk.LEFT, padx=5)
 
-        # 添加刷新JSON按钮
         self.refresh_json_button = tk.Button(row2, text="刷新JSON", command=self.force_refresh_json,
                                              bg='#9C27B0', fg='white', font=("微软雅黑", 10, "bold"), width=10,
                                              relief=tk.RAISED, bd=2)
         self.refresh_json_button.pack(side=tk.LEFT, padx=5)
 
-        # 添加自动滚动选项
         self.auto_scroll_json = tk.BooleanVar(value=True)
         self.auto_scroll_check = tk.Checkbutton(row2, text="自动滚动", variable=self.auto_scroll_json,
                                                 bg='#f0f0f0', font=("微软雅黑", 9))
@@ -244,7 +267,27 @@ class AlibabaScraperGUI:
         self.create_log_view()
 
     def create_table_view(self):
-        """创建表格视图"""
+        """创建表格视图（商家筛选栏）"""
+        filter_bar = tk.Frame(self.table_frame, bg='#f0f0f0', height=35)
+        filter_bar.pack(fill=tk.X, padx=5, pady=5)
+
+        tk.Label(filter_bar, text="商家筛选:", bg='#f0f0f0', font=("微软雅黑", 9)).pack(side=tk.LEFT, padx=5)
+
+        self.filter_entry = tk.Entry(filter_bar, width=20, font=("微软雅黑", 9))
+        self.filter_entry.pack(side=tk.LEFT, padx=5)
+        self.filter_entry.bind("<Return>", lambda e: self.apply_filter())
+
+        self.filter_apply_btn = tk.Button(filter_bar, text="应用筛选", command=self.apply_filter,
+                                          bg='#4CAF50', fg='white', font=("微软雅黑", 9), width=10)
+        self.filter_apply_btn.pack(side=tk.LEFT, padx=2)
+
+        self.filter_reset_btn = tk.Button(filter_bar, text="重置筛选", command=self.reset_filter,
+                                          bg='#FF9800', fg='white', font=("微软雅黑", 9), width=10)
+        self.filter_reset_btn.pack(side=tk.LEFT, padx=2)
+
+        self.filter_match_label = tk.Label(filter_bar, text="", bg='#f0f0f0', font=("微软雅黑", 9), fg='blue')
+        self.filter_match_label.pack(side=tk.LEFT, padx=10)
+
         scroll_y = ttk.Scrollbar(self.table_frame)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
@@ -275,25 +318,19 @@ class AlibabaScraperGUI:
         self.tree.bind('<Double-Button-1>', self.on_tree_double_click)
 
     def create_json_view(self):
-        """创建JSON视图 - 支持实时更新"""
-        # 创建工具栏框架
+        """创建JSON视图"""
         json_toolbar = tk.Frame(self.json_frame, bg='#f0f0f0')
         json_toolbar.pack(fill=tk.X, padx=5, pady=5)
 
-        # 添加工具栏按钮
         tk.Button(json_toolbar, text="复制JSON", command=self.copy_json,
                   bg='#4CAF50', fg='white', font=("微软雅黑", 9)).pack(side=tk.LEFT, padx=2)
-
         tk.Button(json_toolbar, text="格式化", command=self.format_json,
                   bg='#2196F3', fg='white', font=("微软雅黑", 9)).pack(side=tk.LEFT, padx=2)
-
         tk.Button(json_toolbar, text="清空", command=self.clear_json_view,
                   bg='#f44336', fg='white', font=("微软雅黑", 9)).pack(side=tk.LEFT, padx=2)
-
         tk.Button(json_toolbar, text="滚动到底部", command=self.scroll_json_to_end,
                   bg='#FF9800', fg='white', font=("微软雅黑", 9)).pack(side=tk.LEFT, padx=2)
 
-        # 显示行数的文本框
         json_line_frame = tk.Frame(self.json_frame)
         json_line_frame.pack(side=tk.LEFT, fill=tk.Y)
 
@@ -302,17 +339,13 @@ class AlibabaScraperGUI:
                                          font=("Consolas", 10))
         self.json_line_numbers.pack(side=tk.LEFT, fill=tk.Y)
 
-        # JSON显示区域
         self.json_text = scrolledtext.ScrolledText(self.json_frame, wrap=tk.WORD,
                                                    font=("Consolas", 10))
         self.json_text.pack(fill=tk.BOTH, expand=True)
 
-        # 绑定滚动事件
         self.json_text.bind('<MouseWheel>', self.sync_json_scroll)
         self.json_text.bind('<Button-4>', self.sync_json_scroll)
         self.json_text.bind('<Button-5>', self.sync_json_scroll)
-
-        # 绑定内容变化事件
         self.json_text.bind('<<Modified>>', self.on_json_modified)
 
     def create_log_view(self):
@@ -323,13 +356,130 @@ class AlibabaScraperGUI:
         self.log_text.tag_config('error', foreground='red')
         self.log_text.tag_config('warning', foreground='orange')
 
+    # ------------------ 商家筛选 ------------------
+    def apply_filter(self):
+        if self.is_scraping:
+            self.log_message("采集进行中，请等待采集完成后再使用筛选功能", 'warning')
+            return
+        self.filter_keyword = self.filter_entry.get().strip()
+        self.refresh_display()
+
+    def reset_filter(self):
+        self.filter_entry.delete(0, tk.END)
+        self.filter_keyword = ""
+        self.refresh_display()
+
+    def refresh_display(self):
+        if not self.filter_keyword:
+            self.filtered_results = self.all_results.copy()
+        else:
+            kw_lower = self.filter_keyword.lower()
+            self.filtered_results = [item for item in self.all_results
+                                     if kw_lower in item.get('loginId', '').lower()]
+
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+        for data in self.filtered_results:
+            self._add_item_to_tree(data)
+
+        self._display_json_for_data(self.filtered_results)
+
+        total = len(self.all_results)
+        matched = len(self.filtered_results)
+        if self.filter_keyword:
+            self.filter_match_label.config(text=f"匹配商家 {matched} / {total} 条")
+        else:
+            self.filter_match_label.config(text=f"共 {total} 条数据")
+
+    def _add_item_to_tree(self, data):
+        price = data.get('price', '')
+        if price:
+            try:
+                price = f"¥{float(price):.2f}"
+            except:
+                pass
+        self.tree.insert('', tk.END, values=(
+            "📷 查看",
+            data.get('simpleSubject', '')[:100],
+            price,
+            data.get('loginId', ''),
+            data.get('odUrl', '')[:80]
+        ))
+
+    def _display_json_for_data(self, data_list):
+        try:
+            current_scroll = self.json_text.yview()[0] if not self.auto_scroll_json.get() else None
+            self.json_text.delete(1.0, tk.END)
+            if data_list:
+                json_str = json.dumps(data_list, ensure_ascii=False, indent=2)
+                self.json_text.insert(1.0, json_str)
+                self.update_line_numbers()
+                if self.auto_scroll_json.get():
+                    self.json_text.see(tk.END)
+                    self.json_line_numbers.yview_moveto(1)
+                elif current_scroll is not None:
+                    self.json_text.yview_moveto(current_scroll)
+            else:
+                self.json_text.insert(1.0, "无匹配数据")
+                self.update_line_numbers()
+        except Exception as e:
+            self.log_message(f"JSON显示错误: {str(e)}", 'error')
+
+    # ------------------ 更新功能 ------------------
+    def run_update_script(self):
+        """运行 update.py 进行程序更新（独立子进程）"""
+        if self.is_scraping:
+            self.log_message("采集任务进行中，请稍后再更新", 'warning')
+            return
+
+        self.update_button.config(state='disabled')
+        self.log_message("开始执行更新程序，请勿关闭窗口...", 'info')
+
+        def target():
+            import subprocess
+            import sys
+            from pathlib import Path
+
+            update_script = Path(__file__).parent / "update.py"
+            if not update_script.exists():
+                self.root.after(0, lambda: self.log_message("错误：未找到 update.py 文件", 'error'))
+                self.root.after(0, lambda: self.update_button.config(state='normal'))
+                return
+
+            try:
+                proc = subprocess.Popen(
+                    [sys.executable, str(update_script)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding='utf-8',
+                    bufsize=1
+                )
+                for line in iter(proc.stdout.readline, ''):
+                    if line:
+                        self.root.after(0, lambda l=line: self.log_message(l.strip(), 'info'))
+                proc.wait()
+                if proc.returncode == 0:
+                    self.root.after(0, lambda: self.log_message("更新完成！", 'info'))
+                    # 弹出提示框
+                    self.root.after(0, lambda: messagebox.showinfo("更新完成", "程序已成功更新到最新版本！"))
+                else:
+                    self.root.after(0, lambda: self.log_message(f"更新失败，退出码 {proc.returncode}", 'error'))
+                    self.root.after(0, lambda: messagebox.showerror("更新失败", f"更新过程中出现错误，退出码：{proc.returncode}"))
+            except Exception as e:
+                self.root.after(0, lambda: self.log_message(f"执行更新时出错: {str(e)}", 'error'))
+                self.root.after(0, lambda: messagebox.showerror("更新错误", f"执行更新脚本时发生异常：{str(e)}"))
+            finally:
+                self.root.after(0, lambda: self.update_button.config(state='normal'))
+
+        Thread(target=target, daemon=True).start()
+
+    # ------------------ 其他界面交互 ------------------
     def sync_json_scroll(self, event):
-        """同步滚动JSON和行号"""
         self.json_line_numbers.yview_moveto(self.json_text.yview()[0])
         return None
 
     def update_line_numbers(self):
-        """更新行号"""
         try:
             lines = int(self.json_text.index('end-1c').split('.')[0])
             line_numbers = '\n'.join(str(i) for i in range(1, lines + 1))
@@ -341,56 +491,16 @@ class AlibabaScraperGUI:
             pass
 
     def on_json_modified(self, event=None):
-        """JSON内容修改事件"""
         self.json_text.edit_modified(False)
         self.update_line_numbers()
 
-    def update_json_view(self):
-        """更新JSON视图 - 实时动态更新"""
-        try:
-            # 记录当前滚动位置
-            current_scroll = self.json_text.yview()[0] if self.auto_scroll_json.get() else None
-
-            # 清空并重新显示JSON
-            self.json_text.delete(1.0, tk.END)
-
-            if self.all_results:
-                # 格式化显示JSON
-                json_str = json.dumps(self.all_results, ensure_ascii=False, indent=2)
-                self.json_text.insert(1.0, json_str)
-
-                # 更新行号
-                self.update_line_numbers()
-
-                # 根据自动滚动设置决定是否滚动到底部
-                if self.auto_scroll_json.get():
-                    self.json_text.see(tk.END)
-                    self.json_line_numbers.yview_moveto(1)
-                elif current_scroll is not None:
-                    # 保持原来的滚动位置
-                    self.json_text.yview_moveto(current_scroll)
-
-                # 更新状态栏显示数据条数
-                self.progress_count_label.config(text=f"已采集: {len(self.all_results)} 条商品")
-
-        except Exception as e:
-            self.log_message(f"JSON显示错误: {str(e)}", 'error')
-
-    def force_refresh_json(self):
-        """强制刷新JSON显示"""
-        self.update_json_view()
-        self.log_message("JSON视图已刷新", 'info')
-
     def clear_json_view(self):
-        """清空JSON视图"""
         self.json_text.delete(1.0, tk.END)
         self.json_line_numbers.config(state='normal')
         self.json_line_numbers.delete(1.0, tk.END)
         self.json_line_numbers.config(state='disabled')
-        self.log_message("JSON视图已清空", 'info')
 
     def format_json(self):
-        """格式化JSON"""
         try:
             content = self.json_text.get(1.0, tk.END).strip()
             if content:
@@ -404,7 +514,6 @@ class AlibabaScraperGUI:
             self.log_message(f"JSON格式错误: {e}", 'error')
 
     def copy_json(self):
-        """复制JSON到剪贴板"""
         try:
             content = self.json_text.get(1.0, tk.END).strip()
             if content:
@@ -417,24 +526,20 @@ class AlibabaScraperGUI:
         return False
 
     def scroll_json_to_end(self):
-        """滚动JSON到底部"""
         self.json_text.see(tk.END)
         self.json_line_numbers.yview_moveto(1)
         self.log_message("已滚动到JSON底部", 'info')
 
     def log_message(self, message, level='info'):
-        """添加日志消息"""
         timestamp = time.strftime("%H:%M:%S")
         log_entry = f"[{timestamp}] {message}\n"
         self.log_text.insert(tk.END, log_entry, level)
         self.log_text.see(tk.END)
 
     def update_status(self, message, color='green'):
-        """更新状态栏"""
         self.status_label.config(text=message, fg=color)
 
     def update_progress(self, current, total, current_page=None, current_async=None, items_count=0):
-        """更新进度条"""
         if total > 0:
             percent = (current / total) * 100
             self.segment_progress.set_value(percent)
@@ -457,15 +562,47 @@ class AlibabaScraperGUI:
             self.progress_count_label.config(text=f"已采集: {items_count} 条商品")
 
     def reset_progress(self):
-        """重置进度条"""
         self.segment_progress.reset()
         self.percent_label.config(text="0%", bg='#999')
         self.progress_info_label.config(text="等待开始...")
         self.progress_detail_label.config(text="")
         self.progress_count_label.config(text="")
+        self.filter_match_label.config(text="")
+
+    def stop_scraping(self):
+        if self.scraper.is_scraping:
+            self.scraper.stop()
+            self.update_status("正在停止...", 'orange')
+
+    def on_scrape_finished(self, total_items):
+        self.is_scraping = False
+        self._set_filter_controls_state(True)
+        self.refresh_display()
+        self.update_status(f"采集完成！共采集 {total_items} 条数据", 'green')
+        self.start_button.config(state='normal')
+        self.stop_button.config(state='disabled')
+        self.clear_button.config(state='normal')
+        self.save_button.config(state='normal')
+        self.log_message(f"采集完成！共采集 {total_items} 条数据", 'info')
+
+    def add_to_table(self, data):
+        self._add_item_to_tree(data)
+        self.tree.yview_moveto(1)
+
+    def clear_data(self):
+        if messagebox.askyesno("确认", "确定要清空所有数据吗？"):
+            self.all_results.clear()
+            for item in self.tree.get_children():
+                self.tree.delete(item)
+            self.clear_json_view()
+            self.filter_keyword = ""
+            self.filter_entry.delete(0, tk.END)
+            self.filter_match_label.config(text="")
+            self.log_message("所有数据已清空", 'warning')
+            self.update_status("数据已清空", 'green')
+            self.reset_progress()
 
     def start_scraping(self):
-        """开始采集数据"""
         if self.scraper.is_scraping:
             messagebox.showwarning("警告", "采集任务正在进行中！")
             return
@@ -483,6 +620,9 @@ class AlibabaScraperGUI:
             messagebox.showerror("错误", "起始页不能大于结束页！")
             return
 
+        self.reset_filter()
+        self._set_filter_controls_state(False)
+
         self.start_button.config(state='disabled')
         self.stop_button.config(state='normal')
         self.clear_button.config(state='disabled')
@@ -492,56 +632,18 @@ class AlibabaScraperGUI:
         if messagebox.askyesno("确认", "是否清空之前的数据？"):
             self.clear_data()
 
-        # 启动采集线程
         self.scrape_thread = Thread(target=self.scraper.scrape,
                                     args=(keyword, start_page, end_page, async_count))
         self.scrape_thread.daemon = True
         self.scrape_thread.start()
 
-    def stop_scraping(self):
-        """停止采集数据"""
-        if self.scraper.is_scraping:
-            self.scraper.stop()
-            self.update_status("正在停止...", 'orange')
-
-    def on_scrape_finished(self, total_items):
-        """采集完成处理"""
-        self.is_scraping = False
-        # 最终刷新一次JSON视图
-        self.update_json_view()
-        self.update_status(f"采集完成！共采集 {total_items} 条数据", 'green')
-
-        self.start_button.config(state='normal')
-        self.stop_button.config(state='disabled')
-        self.clear_button.config(state='normal')
-        self.save_button.config(state='normal')
-
-        self.log_message(f"采集完成！共采集 {total_items} 条数据", 'info')
-
-    def add_to_table(self, data):
-        """添加数据到表格"""
-        price = data.get('price', '')
-        if price:
-            try:
-                price = f"¥{float(price):.2f}"
-            except:
-                pass
-
-        img_text = "📷 查看"
-
-        self.tree.insert('', tk.END, values=(
-            img_text,
-            data.get('simpleSubject', '')[:100],
-            price,
-            data.get('loginId', ''),
-            data.get('odUrl', '')[:80]
-        ))
-
-        # 自动滚动表格到底部
-        self.tree.yview_moveto(1)
+    def _set_filter_controls_state(self, enabled):
+        state = 'normal' if enabled else 'disabled'
+        self.filter_apply_btn.config(state=state)
+        self.filter_reset_btn.config(state=state)
+        self.filter_entry.config(state=state)
 
     def on_tree_double_click(self, event):
-        """双击表格项时打开链接"""
         selection = self.tree.selection()
         if selection:
             item = self.tree.item(selection[0])
@@ -551,19 +653,7 @@ class AlibabaScraperGUI:
                 webbrowser.open(url)
                 self.log_message(f"打开链接: {url}", 'info')
 
-    def clear_data(self):
-        """清空数据"""
-        if messagebox.askyesno("确认", "确定要清空所有数据吗？"):
-            self.all_results.clear()
-            for item in self.tree.get_children():
-                self.tree.delete(item)
-            self.clear_json_view()
-            self.log_message("所有数据已清空", 'warning')
-            self.update_status("数据已清空", 'green')
-            self.reset_progress()
-
     def save_data(self):
-        """保存数据到文件"""
         if not self.all_results:
             messagebox.showwarning("警告", "没有数据可保存！")
             return
@@ -580,12 +670,22 @@ class AlibabaScraperGUI:
                     self.scraper.save_as_csv(self.all_results, filename)
                 else:
                     self.scraper.save_as_json(self.all_results, filename)
-
                 self.log_message(f"数据已保存到: {filename}", 'info')
                 messagebox.showinfo("成功", f"数据已保存到:\n{filename}")
             except Exception as e:
                 self.log_message(f"保存失败: {str(e)}", 'error')
                 messagebox.showerror("错误", f"保存文件失败:\n{str(e)}")
+
+    def update_json_view(self):
+        if self.is_scraping or (not self.filter_keyword):
+            self._display_json_for_data(self.all_results)
+            self.progress_count_label.config(text=f"已采集: {len(self.all_results)} 条商品")
+        else:
+            self.refresh_display()
+
+    def force_refresh_json(self):
+        self.refresh_display()
+        self.log_message("JSON视图已刷新", 'info')
 
 
 def main():
