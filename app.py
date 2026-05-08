@@ -93,6 +93,7 @@ class AlibabaScraperGUI:
 
         self.all_results = []
         self.is_scraping = False
+        self.json_update_counter = 0  # JSON更新计数器，控制更新频率
 
         self.create_control_panel()
         self.create_display_area()
@@ -107,7 +108,10 @@ class AlibabaScraperGUI:
     def on_data_collected(self, data):
         """数据采集回调"""
         self.all_results.append(data)
+        # 添加到表格
         self.root.after(0, lambda: self.add_to_table(data))
+        # 实时更新JSON显示
+        self.root.after(0, self.update_json_view)
 
     def on_progress(self, current, total, page, async_num, items_count):
         """进度更新回调"""
@@ -122,62 +126,75 @@ class AlibabaScraperGUI:
         control_frame = tk.LabelFrame(self.main_frame, text="采集控制", bg='#f0f0f0', font=("微软雅黑", 12, "bold"))
         control_frame.pack(fill=tk.X, padx=5, pady=5)
 
-        tk.Label(control_frame, text="搜索关键词:", bg='#f0f0f0', font=("微软雅黑", 10)).grid(row=0, column=0, padx=5,
-                                                                                              pady=5, sticky='w')
-        self.keyword_entry = tk.Entry(control_frame, width=20, font=("微软雅黑", 10))
-        self.keyword_entry.grid(row=0, column=1, padx=5, pady=5)
+        # 第一行：输入参数
+        row1 = tk.Frame(control_frame, bg='#f0f0f0')
+        row1.pack(fill=tk.X, padx=5, pady=5)
+
+        tk.Label(row1, text="搜索关键词:", bg='#f0f0f0', font=("微软雅黑", 10)).pack(side=tk.LEFT, padx=5)
+        self.keyword_entry = tk.Entry(row1, width=15, font=("微软雅黑", 10))
+        self.keyword_entry.pack(side=tk.LEFT, padx=5)
         self.keyword_entry.insert(0, "手机")
 
-        tk.Label(control_frame, text="起始页:", bg='#f0f0f0', font=("微软雅黑", 10)).grid(row=0, column=2, padx=5,
-                                                                                          pady=5, sticky='w')
-        self.start_page = tk.Spinbox(control_frame, from_=1, to=50, width=8, font=("微软雅黑", 10))
-        self.start_page.grid(row=0, column=3, padx=5, pady=5)
+        tk.Label(row1, text="起始页:", bg='#f0f0f0', font=("微软雅黑", 10)).pack(side=tk.LEFT, padx=5)
+        self.start_page = tk.Spinbox(row1, from_=1, to=50, width=6, font=("微软雅黑", 10))
+        self.start_page.pack(side=tk.LEFT, padx=5)
         self.start_page.delete(0, 'end')
         self.start_page.insert(0, '1')
 
-        tk.Label(control_frame, text="结束页:", bg='#f0f0f0', font=("微软雅黑", 10)).grid(row=0, column=4, padx=5,
-                                                                                          pady=5, sticky='w')
-        self.end_page = tk.Spinbox(control_frame, from_=1, to=50, width=8, font=("微软雅黑", 10))
-        self.end_page.grid(row=0, column=5, padx=5, pady=5)
+        tk.Label(row1, text="结束页:", bg='#f0f0f0', font=("微软雅黑", 10)).pack(side=tk.LEFT, padx=5)
+        self.end_page = tk.Spinbox(row1, from_=1, to=50, width=6, font=("微软雅黑", 10))
+        self.end_page.pack(side=tk.LEFT, padx=5)
         self.end_page.delete(0, 'end')
         self.end_page.insert(0, '2')
 
-        tk.Label(control_frame, text="异步数(1-6):", bg='#f0f0f0', font=("微软雅黑", 10)).grid(row=0, column=6, padx=5,
-                                                                                               pady=5, sticky='w')
-        self.async_count = tk.Spinbox(control_frame, from_=1, to=6, width=5, font=("微软雅黑", 10))
-        self.async_count.grid(row=0, column=7, padx=5, pady=5)
+        tk.Label(row1, text="异步数(1-6):", bg='#f0f0f0', font=("微软雅黑", 10)).pack(side=tk.LEFT, padx=5)
+        self.async_count = tk.Spinbox(row1, from_=1, to=6, width=5, font=("微软雅黑", 10))
+        self.async_count.pack(side=tk.LEFT, padx=5)
         self.async_count.delete(0, 'end')
         self.async_count.insert(0, '6')
 
-        button_frame = tk.Frame(control_frame, bg='#f0f0f0')
-        button_frame.grid(row=1, column=0, columnspan=8, pady=10)
+        # 第二行：按钮
+        row2 = tk.Frame(control_frame, bg='#f0f0f0')
+        row2.pack(fill=tk.X, padx=5, pady=5)
 
-        self.start_button = tk.Button(button_frame, text="开始采集", command=self.start_scraping,
+        self.start_button = tk.Button(row2, text="开始采集", command=self.start_scraping,
                                       bg='#4CAF50', fg='white', font=("微软雅黑", 10, "bold"), width=12,
                                       relief=tk.RAISED, bd=2)
         self.start_button.pack(side=tk.LEFT, padx=5)
 
-        self.stop_button = tk.Button(button_frame, text="停止采集", command=self.stop_scraping,
+        self.stop_button = tk.Button(row2, text="停止采集", command=self.stop_scraping,
                                      bg='#f44336', fg='white', font=("微软雅黑", 10, "bold"), width=12,
                                      state='disabled', relief=tk.RAISED, bd=2)
         self.stop_button.pack(side=tk.LEFT, padx=5)
 
-        self.clear_button = tk.Button(button_frame, text="清空数据", command=self.clear_data,
+        self.clear_button = tk.Button(row2, text="清空数据", command=self.clear_data,
                                       bg='#FF9800', fg='white', font=("微软雅黑", 10, "bold"), width=12,
                                       relief=tk.RAISED, bd=2)
         self.clear_button.pack(side=tk.LEFT, padx=5)
 
-        self.save_button = tk.Button(button_frame, text="保存数据", command=self.save_data,
+        self.save_button = tk.Button(row2, text="保存数据", command=self.save_data,
                                      bg='#2196F3', fg='white', font=("微软雅黑", 10, "bold"), width=12,
                                      relief=tk.RAISED, bd=2)
         self.save_button.pack(side=tk.LEFT, padx=5)
 
+        # 添加刷新JSON按钮
+        self.refresh_json_button = tk.Button(row2, text="刷新JSON", command=self.force_refresh_json,
+                                             bg='#9C27B0', fg='white', font=("微软雅黑", 10, "bold"), width=10,
+                                             relief=tk.RAISED, bd=2)
+        self.refresh_json_button.pack(side=tk.LEFT, padx=5)
+
+        # 添加自动滚动选项
+        self.auto_scroll_json = tk.BooleanVar(value=True)
+        self.auto_scroll_check = tk.Checkbutton(row2, text="自动滚动", variable=self.auto_scroll_json,
+                                                bg='#f0f0f0', font=("微软雅黑", 9))
+        self.auto_scroll_check.pack(side=tk.LEFT, padx=10)
+
         self.status_label = tk.Label(control_frame, text="就绪", bg='#f0f0f0', font=("微软雅黑", 9), fg='green')
-        self.status_label.grid(row=2, column=0, columnspan=8, pady=5)
+        self.status_label.pack(pady=5)
 
         # 进度条区域
         progress_container = tk.Frame(control_frame, bg='#e0e0e0', bd=1, relief=tk.SUNKEN)
-        progress_container.grid(row=3, column=0, columnspan=8, sticky='ew', padx=5, pady=5)
+        progress_container.pack(fill=tk.X, padx=5, pady=5)
         progress_container.grid_columnconfigure(0, weight=1)
 
         progress_inner = tk.Frame(progress_container, bg='#e0e0e0', padx=3, pady=3)
@@ -258,9 +275,45 @@ class AlibabaScraperGUI:
         self.tree.bind('<Double-Button-1>', self.on_tree_double_click)
 
     def create_json_view(self):
-        """创建JSON视图"""
-        self.json_text = scrolledtext.ScrolledText(self.json_frame, wrap=tk.WORD, font=("Consolas", 10))
+        """创建JSON视图 - 支持实时更新"""
+        # 创建工具栏框架
+        json_toolbar = tk.Frame(self.json_frame, bg='#f0f0f0')
+        json_toolbar.pack(fill=tk.X, padx=5, pady=5)
+
+        # 添加工具栏按钮
+        tk.Button(json_toolbar, text="复制JSON", command=self.copy_json,
+                  bg='#4CAF50', fg='white', font=("微软雅黑", 9)).pack(side=tk.LEFT, padx=2)
+
+        tk.Button(json_toolbar, text="格式化", command=self.format_json,
+                  bg='#2196F3', fg='white', font=("微软雅黑", 9)).pack(side=tk.LEFT, padx=2)
+
+        tk.Button(json_toolbar, text="清空", command=self.clear_json_view,
+                  bg='#f44336', fg='white', font=("微软雅黑", 9)).pack(side=tk.LEFT, padx=2)
+
+        tk.Button(json_toolbar, text="滚动到底部", command=self.scroll_json_to_end,
+                  bg='#FF9800', fg='white', font=("微软雅黑", 9)).pack(side=tk.LEFT, padx=2)
+
+        # 显示行数的文本框
+        json_line_frame = tk.Frame(self.json_frame)
+        json_line_frame.pack(side=tk.LEFT, fill=tk.Y)
+
+        self.json_line_numbers = tk.Text(json_line_frame, width=5, padx=2, takefocus=0,
+                                         border=0, background='#f0f0f0', state='disabled',
+                                         font=("Consolas", 10))
+        self.json_line_numbers.pack(side=tk.LEFT, fill=tk.Y)
+
+        # JSON显示区域
+        self.json_text = scrolledtext.ScrolledText(self.json_frame, wrap=tk.WORD,
+                                                   font=("Consolas", 10))
         self.json_text.pack(fill=tk.BOTH, expand=True)
+
+        # 绑定滚动事件
+        self.json_text.bind('<MouseWheel>', self.sync_json_scroll)
+        self.json_text.bind('<Button-4>', self.sync_json_scroll)
+        self.json_text.bind('<Button-5>', self.sync_json_scroll)
+
+        # 绑定内容变化事件
+        self.json_text.bind('<<Modified>>', self.on_json_modified)
 
     def create_log_view(self):
         """创建日志视图"""
@@ -269,6 +322,105 @@ class AlibabaScraperGUI:
         self.log_text.tag_config('info', foreground='green')
         self.log_text.tag_config('error', foreground='red')
         self.log_text.tag_config('warning', foreground='orange')
+
+    def sync_json_scroll(self, event):
+        """同步滚动JSON和行号"""
+        self.json_line_numbers.yview_moveto(self.json_text.yview()[0])
+        return None
+
+    def update_line_numbers(self):
+        """更新行号"""
+        try:
+            lines = int(self.json_text.index('end-1c').split('.')[0])
+            line_numbers = '\n'.join(str(i) for i in range(1, lines + 1))
+            self.json_line_numbers.config(state='normal')
+            self.json_line_numbers.delete(1.0, tk.END)
+            self.json_line_numbers.insert(1.0, line_numbers)
+            self.json_line_numbers.config(state='disabled')
+        except:
+            pass
+
+    def on_json_modified(self, event=None):
+        """JSON内容修改事件"""
+        self.json_text.edit_modified(False)
+        self.update_line_numbers()
+
+    def update_json_view(self):
+        """更新JSON视图 - 实时动态更新"""
+        try:
+            # 记录当前滚动位置
+            current_scroll = self.json_text.yview()[0] if self.auto_scroll_json.get() else None
+
+            # 清空并重新显示JSON
+            self.json_text.delete(1.0, tk.END)
+
+            if self.all_results:
+                # 格式化显示JSON
+                json_str = json.dumps(self.all_results, ensure_ascii=False, indent=2)
+                self.json_text.insert(1.0, json_str)
+
+                # 更新行号
+                self.update_line_numbers()
+
+                # 根据自动滚动设置决定是否滚动到底部
+                if self.auto_scroll_json.get():
+                    self.json_text.see(tk.END)
+                    self.json_line_numbers.yview_moveto(1)
+                elif current_scroll is not None:
+                    # 保持原来的滚动位置
+                    self.json_text.yview_moveto(current_scroll)
+
+                # 更新状态栏显示数据条数
+                self.progress_count_label.config(text=f"已采集: {len(self.all_results)} 条商品")
+
+        except Exception as e:
+            self.log_message(f"JSON显示错误: {str(e)}", 'error')
+
+    def force_refresh_json(self):
+        """强制刷新JSON显示"""
+        self.update_json_view()
+        self.log_message("JSON视图已刷新", 'info')
+
+    def clear_json_view(self):
+        """清空JSON视图"""
+        self.json_text.delete(1.0, tk.END)
+        self.json_line_numbers.config(state='normal')
+        self.json_line_numbers.delete(1.0, tk.END)
+        self.json_line_numbers.config(state='disabled')
+        self.log_message("JSON视图已清空", 'info')
+
+    def format_json(self):
+        """格式化JSON"""
+        try:
+            content = self.json_text.get(1.0, tk.END).strip()
+            if content:
+                data = json.loads(content)
+                formatted = json.dumps(data, ensure_ascii=False, indent=2)
+                self.json_text.delete(1.0, tk.END)
+                self.json_text.insert(1.0, formatted)
+                self.update_line_numbers()
+                self.log_message("JSON格式化完成", 'info')
+        except json.JSONDecodeError as e:
+            self.log_message(f"JSON格式错误: {e}", 'error')
+
+    def copy_json(self):
+        """复制JSON到剪贴板"""
+        try:
+            content = self.json_text.get(1.0, tk.END).strip()
+            if content:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(content)
+                self.log_message("JSON已复制到剪贴板", 'info')
+                return True
+        except Exception as e:
+            self.log_message(f"复制失败: {e}", 'error')
+        return False
+
+    def scroll_json_to_end(self):
+        """滚动JSON到底部"""
+        self.json_text.see(tk.END)
+        self.json_line_numbers.yview_moveto(1)
+        self.log_message("已滚动到JSON底部", 'info')
 
     def log_message(self, message, level='info'):
         """添加日志消息"""
@@ -355,6 +507,7 @@ class AlibabaScraperGUI:
     def on_scrape_finished(self, total_items):
         """采集完成处理"""
         self.is_scraping = False
+        # 最终刷新一次JSON视图
         self.update_json_view()
         self.update_status(f"采集完成！共采集 {total_items} 条数据", 'green')
 
@@ -362,6 +515,8 @@ class AlibabaScraperGUI:
         self.stop_button.config(state='disabled')
         self.clear_button.config(state='normal')
         self.save_button.config(state='normal')
+
+        self.log_message(f"采集完成！共采集 {total_items} 条数据", 'info')
 
     def add_to_table(self, data):
         """添加数据到表格"""
@@ -382,6 +537,9 @@ class AlibabaScraperGUI:
             data.get('odUrl', '')[:80]
         ))
 
+        # 自动滚动表格到底部
+        self.tree.yview_moveto(1)
+
     def on_tree_double_click(self, event):
         """双击表格项时打开链接"""
         selection = self.tree.selection()
@@ -393,19 +551,13 @@ class AlibabaScraperGUI:
                 webbrowser.open(url)
                 self.log_message(f"打开链接: {url}", 'info')
 
-    def update_json_view(self):
-        """更新JSON视图"""
-        self.json_text.delete(1.0, tk.END)
-        json_str = json.dumps(self.all_results, ensure_ascii=False, indent=2)
-        self.json_text.insert(1.0, json_str)
-
     def clear_data(self):
         """清空数据"""
         if messagebox.askyesno("确认", "确定要清空所有数据吗？"):
             self.all_results.clear()
             for item in self.tree.get_children():
                 self.tree.delete(item)
-            self.json_text.delete(1.0, tk.END)
+            self.clear_json_view()
             self.log_message("所有数据已清空", 'warning')
             self.update_status("数据已清空", 'green')
             self.reset_progress()
