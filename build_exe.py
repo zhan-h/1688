@@ -50,6 +50,7 @@ def build_with_pyinstaller():
         '--hidden-import=random',
         '--hidden-import=json',
         '--hidden-import=github-content-downloader',
+        '--hidden-import=github_downloader'
         '--noconfirm',
         'app.py'
     ]
