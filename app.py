@@ -1,10 +1,13 @@
 import json
+import sys
 import time
 import tkinter as tk
+from pathlib import Path
 from threading import Thread
 from tkinter import ttk, scrolledtext, messagebox, filedialog
-
+from update import update
 from scraper import AlibabaScraperCore
+
 
 
 class SegmentProgressbar(tk.Canvas):
@@ -427,45 +430,34 @@ class AlibabaScraperGUI:
 
     # ------------------ 更新功能 ------------------
     def run_update_script(self):
-        """运行 update.py 进行程序更新（独立子进程）"""
+        """运行更新（直接调用 update 模块的函数）"""
         if self.is_scraping:
             self.log_message("采集任务进行中，请稍后再更新", 'warning')
             return
 
         self.update_button.config(state='disabled')
-        self.log_message("开始执行更新程序，请勿关闭窗口...", 'info')
+        self.log_message("开始执行更新程序，请勿关闭窗口...(请保证网络能进入github，否则可能导致更新失败)", 'info')
 
         def target():
-            import subprocess
-            import sys
-            from pathlib import Path
+            # 处理打包后的路径：将 sys._MEIPASS 加入 sys.path 以便导入 update
+            if getattr(sys, 'frozen', False):
+                # 打包后的环境
+                base_path = sys._MEIPASS
+            else:
+                # 开发环境
+                base_path = Path(__file__).parent
 
-            update_script = Path(__file__).parent / "update.py"
-            if not update_script.exists():
-                self.root.after(0, lambda: self.log_message("错误：未找到 update.py 文件", 'error'))
-                self.root.after(0, lambda: self.update_button.config(state='normal'))
-                return
+            # 将 base_path 添加到 sys.path 最前面，确保能找到 update 模块
+            if str(base_path) not in sys.path:
+                sys.path.insert(0, str(base_path))
 
             try:
-                proc = subprocess.Popen(
-                    [sys.executable, str(update_script)],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    encoding='utf-8',
-                    bufsize=1
-                )
-                for line in iter(proc.stdout.readline, ''):
-                    if line:
-                        self.root.after(0, lambda l=line: self.log_message(l.strip(), 'info'))
-                proc.wait()
-                if proc.returncode == 0:
-                    self.root.after(0, lambda: self.log_message("更新完成！", 'info'))
-                    # 弹出提示框
-                    self.root.after(0, lambda: messagebox.showinfo("更新完成", "程序已成功更新到最新版本！"))
-                else:
-                    self.root.after(0, lambda: self.log_message(f"更新失败，退出码 {proc.returncode}", 'error'))
-                    self.root.after(0, lambda: messagebox.showerror("更新失败", f"更新过程中出现错误，退出码：{proc.returncode}"))
+                # 动态导入 update 模块并调用其 update 函数
+                from update import update
+                update()  # 执行更新
+                # 更新成功后的 UI 反馈
+                self.root.after(0, lambda: self.log_message("更新完成！", 'info'))
+                self.root.after(0, lambda: messagebox.showinfo("更新完成", "程序已成功更新到最新版本！"))
             except Exception as e:
                 self.root.after(0, lambda: self.log_message(f"执行更新时出错: {str(e)}", 'error'))
                 self.root.after(0, lambda: messagebox.showerror("更新错误", f"执行更新脚本时发生异常：{str(e)}"))
