@@ -5,7 +5,6 @@ import tkinter as tk
 from pathlib import Path
 from threading import Thread
 from tkinter import ttk, scrolledtext, messagebox, filedialog
-from update import update
 from scraper import AlibabaScraperCore
 
 

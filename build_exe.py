@@ -49,7 +49,7 @@ def build_with_pyinstaller():
         '--hidden-import=hashlib',
         '--hidden-import=random',
         '--hidden-import=json',
-        '--hidden-import=github_downloader',   # 如果存在该自定义模块
+        '--hidden-import=github-content-downloader',
         '--noconfirm',
         'app.py'
     ]
