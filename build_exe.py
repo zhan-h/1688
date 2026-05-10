@@ -63,7 +63,7 @@ def build_with_pyinstaller():
 
     if result.returncode == 0:
         print("\n✅ 打包成功！")
-        exe_path = os.path.join('dist', '1688商品采集工具.exe')
+        exe_path = os.path.join('dist', '商品采集工具.exe')
         if os.path.exists(exe_path):
             size = os.path.getsize(exe_path) / (1024 * 1024)
             print(f"📁 输出位置: {os.path.abspath(exe_path)}")
@@ -78,7 +78,7 @@ def build_with_pyinstaller():
 
 def main():
     print("=" * 60)
-    print("1688商品采集工具 - 打包程序")
+    print("商品采集工具 - 打包程序")
     print("=" * 60)
     if not check_files():
         return
@@ -86,7 +86,7 @@ def main():
     clean_build()
     if build_with_pyinstaller():
         print("\n🎉 打包完成！")
-        print("📁 输出位置: dist/1688商品采集工具.exe")
+        print("📁 输出位置: dist/商品采集工具.exe")
         print("💡 双击即可运行，无需安装 Python")
     else:
         print("\n打包失败，请检查：")
