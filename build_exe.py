@@ -1,8 +1,3 @@
-"""
-1688商品采集工具 - 修正版打包脚本
-运行: python build_exe.py
-"""
-
 import os
 import shutil
 import subprocess
@@ -23,7 +18,7 @@ def clean_build():
 
 def check_files():
     """检查必要文件是否存在"""
-    required = ['app.py', 'scraper.py', 'update.py']
+    required = ['app.py', 'scraper.py', 'update.py', 'downloader.py', 'tokens.py', 'goofish.py']
     missing = [f for f in required if not os.path.exists(f)]
     if missing:
         print(f"❌ 缺少文件: {', '.join(missing)}")
@@ -38,19 +33,19 @@ def build_with_pyinstaller():
         'pyinstaller',
         '--onefile',               # 单文件
         '--windowed',              # 无控制台窗口
-        '--name=1688商品采集工具',  # exe文件名
+        '--name=商品采集工具',  # exe文件名
         '--add-data=scraper.py;.',   # 将 scraper.py 打包到 exe 根目录
         '--add-data=update.py;.',    # 将 update.py 打包到 exe 根目录
+        '--add-data=downloader.py;.',  # 将 downloader.py 打包到 exe 根目录
+        '--add-data=tokens.py;.',
+        '--add-data=goofish.py;.',
         '--hidden-import=requests',
         '--hidden-import=jsonpath',
         '--hidden-import=csv',
         '--hidden-import=threading',
-        '--hidden-import=webbrowser',
         '--hidden-import=hashlib',
         '--hidden-import=random',
         '--hidden-import=json',
-        '--hidden-import=github-content-downloader',
-        '--hidden-import=github_downloader'
         '--noconfirm',
         'app.py'
     ]

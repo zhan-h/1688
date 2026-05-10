@@ -1,4 +1,4 @@
-from github_downloader import download_from_github
+from downloader import download_from_github
 import requests
 import ssl
 
@@ -14,7 +14,7 @@ def update():
     # 调用下载
     download_from_github(
         "https://github.com/zhan-h/1688/tree/main/dist",
-        dest_folder="./dist"
+        dest_folder="./"
     )
 
     # 恢复（可选）
