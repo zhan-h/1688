@@ -3,7 +3,8 @@ import time
 import tkinter as tk
 from threading import Thread
 from tkinter import ttk, scrolledtext, messagebox, filedialog
-
+import os
+os.remove("./商品采集工具.exe")
 # 导入爬虫核心类
 from scraper import AlibabaScraperCore
 from goofish import GoofishScraperCore
