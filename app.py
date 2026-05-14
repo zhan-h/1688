@@ -217,7 +217,7 @@ class AlibabaScraperGUI(ttk.Frame):
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
         scroll_x = ttk.Scrollbar(self.table_frame, orient=tk.HORIZONTAL)
         scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
-        columns = ('图片', '标题', '价格', '商家', '链接')
+        columns = ('图片', '标题', '价格', '商家', '链接', '产品ID', '月代销', '上架时间')
         self.tree = ttk.Treeview(self.table_frame, columns=columns, show='headings',
                                  yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
         self.tree.heading('图片', text='图片')
@@ -225,11 +225,18 @@ class AlibabaScraperGUI(ttk.Frame):
         self.tree.heading('价格', text='价格(元)')
         self.tree.heading('商家', text='商家')
         self.tree.heading('链接', text='商品链接')
+        self.tree.heading('产品ID', text='产品ID')
+        self.tree.heading('月代销', text='月代销')
+        self.tree.heading('上架时间', text='上架时间')
         self.tree.column('图片', width=100)
-        self.tree.column('标题', width=500)
+        self.tree.column('标题', width=300)
         self.tree.column('价格', width=100)
         self.tree.column('商家', width=150)
         self.tree.column('链接', width=300)
+        self.tree.column('产品ID', width=100)
+        self.tree.column('月代销', width=100)
+        self.tree.column('上架时间', width=100)
+
         self.tree.pack(fill=tk.BOTH, expand=True)
         scroll_y.config(command=self.tree.yview)
         scroll_x.config(command=self.tree.xview)
@@ -299,7 +306,10 @@ class AlibabaScraperGUI(ttk.Frame):
             data.get('simpleSubject', '')[:100],
             price,
             data.get('loginId', ''),
-            data.get('odUrl', '')[:80]
+            data.get('odUrl', '')[:80],
+            data.get('itemIds', ''),
+            data.get('DaySaleNum_30s', ''),
+            data.get('addTimes', '')
         ))
         self.tree.yview_moveto(1)
 
@@ -420,7 +430,10 @@ class AlibabaScraperGUI(ttk.Frame):
             data.get('simpleSubject', '')[:100],
             price,
             data.get('loginId', ''),
-            data.get('odUrl', '')[:80]
+            data.get('odUrl', '')[:80],
+            data.get('itemIds', ''),
+            data.get('DaySaleNum_30s', ''),
+            data.get('addTimes', '')
         ))
 
     def on_tree_double_click(self, event):
@@ -984,7 +997,7 @@ class UpdateTab(ttk.Frame):
 class MainApplication(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("商品数据采集系统 V1.1")
+        self.title("商品数据采集系统 V1.2")
         self.geometry("1250x750")
         self.configure(bg='#f0f0f0')
 

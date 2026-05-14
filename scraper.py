@@ -5,6 +5,7 @@ import random
 import time
 import jsonpath
 import requests
+from API import get_data
 
 
 def sign(keyword, t):
@@ -141,6 +142,9 @@ class AlibabaScraperCore:
                         price = jsonpath.jsonpath(json_data, '$..list[*].price') or []
                         loginId = jsonpath.jsonpath(json_data, '$..loginId') or []
                         odUrl = jsonpath.jsonpath(json_data, '$..odUrl') or []
+                        itemIds = jsonpath.jsonpath(json_data, '$..list[*].itemId') or []
+                        itemIds_API_data = ','.join(itemId for itemId in itemIds)
+                        DaySaleNum_30s, addTimes = get_data(itemIds_API_data)
 
                         for i in range(len(imgUrl)):
                             result = {
@@ -148,7 +152,10 @@ class AlibabaScraperCore:
                                 "simpleSubject": simpleSubject[i] if i < len(simpleSubject) else "",
                                 "price": price[i] if i < len(price) else "",
                                 "loginId": loginId[i] if i < len(loginId) else "",
-                                "odUrl": odUrl[i] if i < len(odUrl) else ""
+                                "odUrl": odUrl[i] if i < len(odUrl) else "",
+                                "itemIds": itemIds[i] if i < len(itemIds) else "",
+                                "DaySaleNum_30s": DaySaleNum_30s[i] if i < len(DaySaleNum_30s) else "",
+                                "addTimes": addTimes[i] if i < len(addTimes) else "",
                             }
 
                             all_results.append(result)
@@ -176,7 +183,7 @@ class AlibabaScraperCore:
                 self.callbacks['on_finish'](all_results, total_items)
 
             self.update_progress(total_requests, total_requests, items_count=total_items)
-
+        print(all_results)
         return all_results
 
     def save_as_json(self, data, filename):
@@ -188,7 +195,7 @@ class AlibabaScraperCore:
         """保存为CSV格式"""
         if not data:
             return
-        fieldnames = ['imgUrl', 'simpleSubject', 'price', 'loginId', 'odUrl']
+        fieldnames = ['imgUrl', 'simpleSubject', 'price', 'loginId', 'odUrl','itemIds', 'DaySaleNum_30s', 'addTimes']
         with open(filename, 'w', newline='', encoding='utf-8-sig') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
