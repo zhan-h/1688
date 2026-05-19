@@ -33,7 +33,7 @@ def build_with_pyinstaller():
         'pyinstaller',
         '--onefile',               # 单文件
         '--windowed',              # 无控制台窗口
-        '--name=商品采集工具v1.2',  # exe文件名
+        '--name=商品采集工具v1.3',  # exe文件名
         '--add-data=scraper.py;.',   # 将 scraper.py 打包到 exe 根目录
         '--add-data=update.py;.',    # 将 update.py 打包到 exe 根目录
         '--add-data=downloader.py;.',  # 将 downloader.py 打包到 exe 根目录
@@ -64,7 +64,7 @@ def build_with_pyinstaller():
 
     if result.returncode == 0:
         print("\n✅ 打包成功！")
-        exe_path = os.path.join('dist', '商品采集工具v1.2.exe')
+        exe_path = os.path.join('dist', '商品采集工具v1.3.exe')
         if os.path.exists(exe_path):
             size = os.path.getsize(exe_path) / (1024 * 1024)
             print(f"📁 输出位置: {os.path.abspath(exe_path)}")
@@ -87,7 +87,7 @@ def main():
     clean_build()
     if build_with_pyinstaller():
         print("\n🎉 打包完成！")
-        print("📁 输出位置: dist/商品采集工具v1.2.exe")
+        print("📁 输出位置: dist/商品采集工具v1.3.exe")
         print("💡 双击即可运行，无需安装 Python")
     else:
         print("\n打包失败，请检查：")

@@ -84,107 +84,134 @@ class AlibabaScraperCore:
         self.log("正在停止采集任务...", 'warning')
 
     def scrape(self, keyword, start_page, end_page, async_count):
-        """执行数据采集"""
-        self.is_scraping = True
-        self.log(f"开始采集关键词 '{keyword}' 的数据...", 'info')
+        """执行数据采集（失败时自动重试一次）"""
+        max_retries = 1  # 重试1次，即最多尝试2次
+        attempt = 0
+        final_all_results = []
+        final_total_items = 0
 
-        total_pages = end_page - start_page + 1
-        total_requests = total_pages * async_count
-        completed_requests = 0
-        all_results = []
-        total_items = 0
+        while attempt <= max_retries:
+            attempt += 1
+            self.log(f"开始第 {attempt} 次采集尝试...", 'info')
 
-        try:
-            for beginpage in range(start_page, end_page + 1):
-                if not self.is_scraping:
-                    self.log("采集任务已停止", 'warning')
-                    break
+            # ----- 重置本次尝试的状态 -----
+            self.is_scraping = True
+            all_results = []
+            total_items = 0
+            completed_requests = 0
+            error_occurred = False
+            total_pages = end_page - start_page + 1
+            total_requests = total_pages * async_count
 
-                for asyncreq in range(1, async_count + 1):
+            try:
+                # ----- 原采集逻辑 -----
+                for beginpage in range(start_page, end_page + 1):
                     if not self.is_scraping:
+                        self.log("采集任务已停止", 'warning')
                         break
 
-                    t = str(int(time.time() * 10000))
-                    sign_code = sign(keyword, t)
-                    time.sleep(random.uniform(1, 2))
+                    for asyncreq in range(1, async_count + 1):
+                        if not self.is_scraping:
+                            break
 
-                    params = {
-                        "beginpage": beginpage,
-                        "asyncreq": asyncreq,
-                        "keywords": "",
-                        "keyword": keyword,
-                        "sortType": "",
-                        "descendOrder": "",
-                        "province": "",
-                        "city": "",
-                        "priceStart": "",
-                        "priceEnd": "",
-                        "dis": "",
-                        "ptid": "017700000009773527d8137c21764ec6",
-                        "exp": "pcSemFumian%3AC%3Bsidebar%3AC%3BpcDacuIconExp%3AB%3BpcCpxGuessExp%3AB%3Bqztf%3AF%3BpcCpxCpsExp%3AB%3Bwysiwyg%3AB%3BhotBangdanExp%3AB%3BpcSemWwClick%3AA%3Basst%3AD%3BpcSemDownloadPlugin%3AA",
-                        "cosite": "bingjj",
-                        "salt": t,
-                        "sign": sign_code,
-                        "hmaTid": "3",
-                        "hmaQuery": "graphDataQuery",
-                        "pidClass": "pc_list_336",
-                        "cpx": "cpc%2Ccpt%2Cfree%2Cnature",
-                        "api": "pcSearch",
-                        "pv_id": ""
-                    }
+                        t = str(int(time.time() * 10000))
+                        sign_code = sign(keyword, t)
+                        time.sleep(random.uniform(1, 2))
 
-                    try:
-                        response = requests.get(self.url, headers=self.headers,
-                                                cookies=self.cookies, params=params, timeout=10)
-                        json_data = response.json()
-                        imgUrl = jsonpath.jsonpath(json_data, '$..list[*].imgUrl') or []
-                        simpleSubject = jsonpath.jsonpath(json_data, '$..simpleSubject') or []
-                        price = jsonpath.jsonpath(json_data, '$..list[*].price') or []
-                        loginId = jsonpath.jsonpath(json_data, '$..loginId') or []
-                        odUrl = jsonpath.jsonpath(json_data, '$..odUrl') or []
-                        itemIds = jsonpath.jsonpath(json_data, '$..list[*].itemId') or []
-                        itemIds_API_data = ','.join(itemId for itemId in itemIds)
-                        DaySaleNum_30s, addTimes = get_data(itemIds_API_data)
+                        params = {
+                            "beginpage": beginpage,
+                            "asyncreq": asyncreq,
+                            "keywords": "",
+                            "keyword": keyword,
+                            "sortType": "",
+                            "descendOrder": "",
+                            "province": "",
+                            "city": "",
+                            "priceStart": "",
+                            "priceEnd": "",
+                            "dis": "",
+                            "ptid": "017700000009773527d8137c21764ec6",
+                            "exp": "pcSemFumian%3AC%3Bsidebar%3AC%3BpcDacuIconExp%3AB%3BpcCpxGuessExp%3AB%3Bqztf%3AF%3BpcCpxCpsExp%3AB%3Bwysiwyg%3AB%3BhotBangdanExp%3AB%3BpcSemWwClick%3AA%3Basst%3AD%3BpcSemDownloadPlugin%3AA",
+                            "cosite": "bingjj",
+                            "salt": t,
+                            "sign": sign_code,
+                            "hmaTid": "3",
+                            "hmaQuery": "graphDataQuery",
+                            "pidClass": "pc_list_336",
+                            "cpx": "cpc%2Ccpt%2Cfree%2Cnature",
+                            "api": "pcSearch",
+                            "pv_id": ""
+                        }
 
-                        for i in range(len(imgUrl)):
-                            result = {
-                                "imgUrl": imgUrl[i] if i < len(imgUrl) else "",
-                                "simpleSubject": simpleSubject[i] if i < len(simpleSubject) else "",
-                                "price": price[i] if i < len(price) else "",
-                                "loginId": loginId[i] if i < len(loginId) else "",
-                                "odUrl": odUrl[i] if i < len(odUrl) else "",
-                                "itemIds": itemIds[i] if i < len(itemIds) else "",
-                                "DaySaleNum_30s": DaySaleNum_30s[i] if i < len(DaySaleNum_30s) else "",
-                                "addTimes": addTimes[i] if i < len(addTimes) else "",
-                            }
+                        try:
+                            response = requests.get(self.url, headers=self.headers,
+                                                    cookies=self.cookies, params=params, timeout=10)
+                            json_data = response.json()
+                            imgUrl = jsonpath.jsonpath(json_data, '$..list[*].imgUrl') or []
+                            simpleSubject = jsonpath.jsonpath(json_data, '$..simpleSubject') or []
+                            price = jsonpath.jsonpath(json_data, '$..list[*].price') or []
+                            loginId = jsonpath.jsonpath(json_data, '$..loginId') or []
+                            odUrl = jsonpath.jsonpath(json_data, '$..odUrl') or []
+                            itemIds = jsonpath.jsonpath(json_data, '$..list[*].itemId') or []
+                            itemIds_API_data = ','.join(itemId for itemId in itemIds)
+                            DaySaleNum_30s, addTimes = get_data(itemIds_API_data)
 
-                            all_results.append(result)
-                            total_items += 1
-                            self.on_data_collected(result)
+                            for i in range(len(imgUrl)):
+                                result = {
+                                    "imgUrl": imgUrl[i] if i < len(imgUrl) else "",
+                                    "simpleSubject": simpleSubject[i] if i < len(simpleSubject) else "",
+                                    "price": price[i] if i < len(price) else "",
+                                    "loginId": loginId[i] if i < len(loginId) else "",
+                                    "odUrl": odUrl[i] if i < len(odUrl) else "",
+                                    "itemIds": itemIds[i] if i < len(itemIds) else "",
+                                    "DaySaleNum_30s": DaySaleNum_30s[i] if i < len(DaySaleNum_30s) else "",
+                                    "addTimes": addTimes[i] if i < len(addTimes) else "",
+                                }
+                                all_results.append(result)
+                                total_items += 1
+                                self.on_data_collected(result)
 
-                            if total_items % 10 == 0:
-                                self.log(f"已采集 {total_items} 条数据", 'info')
+                                if total_items % 10 == 0:
+                                    self.log(f"已采集 {total_items} 条数据", 'info')
 
-                    except Exception as e:
-                        self.log(f"请求失败: {str(e)}", 'error')
+                        except Exception as e:
+                            self.log(f"请求失败: {str(e)}", 'error')
 
-                    completed_requests += 1
-                    self.update_progress(completed_requests, total_requests, beginpage, asyncreq, total_items)
+                        completed_requests += 1
+                        self.update_progress(completed_requests, total_requests, beginpage, asyncreq, total_items)
 
-                self.log(f"第 {beginpage} 页采集完成，共采集 {total_items} 条数据", 'info')
+                    self.log(f"第 {beginpage} 页采集完成，当前累计 {total_items} 条数据", 'info')
 
-        except Exception as e:
-            self.log(f"采集过程出错: {str(e)}", 'error')
-        finally:
-            self.is_scraping = False
-            self.log(f"采集任务结束！共采集 {total_items} 条数据", 'info')
+            except Exception as e:
+                error_occurred = True
+                self.log(f"第 {attempt} 次采集发生严重异常: {str(e)}", 'error')
+            finally:
+                self.is_scraping = False
+                self.update_progress(completed_requests, total_requests, items_count=total_items)
 
-            if self.callbacks['on_finish']:
-                self.callbacks['on_finish'](all_results, total_items)
+            # ----- 判断本次尝试是否成功 -----
+            if not error_occurred and total_items > 0:
+                self.log(f"第 {attempt} 次采集成功，共采集 {total_items} 条数据", 'info')
+                final_all_results = all_results
+                final_total_items = total_items
+                # 成功时触发完成回调
+                if self.callbacks['on_finish']:
+                    self.callbacks['on_finish'](final_all_results, final_total_items)
+                break
+            else:
+                if attempt <= max_retries:
+                    self.log(f"第 {attempt} 次采集失败（{'异常' if error_occurred else '无数据'}），将重试一次...",
+                             'warning')
+                    # 继续下一次循环
+                else:
+                    self.log(f"已达最大尝试次数（{max_retries + 1}次），采集结束，共采集 {total_items} 条数据", 'warning')
+                    final_all_results = all_results
+                    final_total_items = total_items
+                    if self.callbacks['on_finish']:
+                        self.callbacks['on_finish'](final_all_results, final_total_items)
 
-            self.update_progress(total_requests, total_requests, items_count=total_items)
-        print(all_results)
-        return all_results
+        print(final_all_results)
+        return final_all_results
 
     def save_as_json(self, data, filename):
         """保存为JSON格式"""

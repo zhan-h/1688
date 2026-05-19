@@ -6,7 +6,7 @@ from tkinter import ttk, scrolledtext, messagebox, filedialog
 import os
 
 try:
-    os.remove("./商品采集工具.exe")
+    os.remove("./商品采集工具v1.2.exe")
 except:
     pass
 
@@ -997,7 +997,7 @@ class UpdateTab(ttk.Frame):
 class MainApplication(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("商品数据采集系统 V1.2")
+        self.title("商品数据采集系统 V1.3")
         self.geometry("1250x750")
         self.configure(bg='#f0f0f0')
 

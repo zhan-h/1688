@@ -58,6 +58,7 @@ def get_data(item_id):
         # 处理 UTF-8 BOM
         content = response.content.decode('utf-8-sig')
         result = json.loads(content)
+        # print(result)
         # print("获取成功，数据：")
         DaySaleNum_30s = []
         addTimes = []
@@ -72,3 +73,4 @@ def get_data(item_id):
         print(f"请求失败，状态码：{response.status_code}")
         # 打印前500字符以便调试
         print("响应内容预览：", response.text[:500])
+# get_data("956227071588")
