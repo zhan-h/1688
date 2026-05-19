@@ -17,15 +17,28 @@ def clean_build():
             print(f"✓ 已清理: {file}")
 
 def check_files():
-    """检查必要文件是否存在"""
-    required = ['app.py', 'scraper.py', 'update.py', 'downloader.py', 'tokens.py', 'goofish.py']
-    missing = [f for f in required if not os.path.exists(f)]
+    """检查必要文件是否存在（支持子目录）"""
+    required = {
+        'app.py': '.',
+        'update.py': '.',
+        'downloader.py': '.',
+        'scraper.py': 'data_1688',
+        'tokens.py': 'goofish',
+        'goofish.py': 'goofish',
+        'API.py': 'data_1688',
+        'mind.py': 'data_1688',
+        'tokens_1688.py': 'data_1688',
+    }
+    missing = []
+    for filename, subdir in required.items():
+        path = os.path.join(subdir, filename) if subdir != '.' else filename
+        if not os.path.exists(path):
+            missing.append(f"{filename} (in {subdir})")
     if missing:
         print(f"❌ 缺少文件: {', '.join(missing)}")
         return False
     print("✓ 必要文件检查通过")
     return True
-
 def build_with_pyinstaller():
     """使用 PyInstaller 打包"""
     # 基础命令（注意 --add-data 格式：源文件;目标目录）
@@ -33,13 +46,15 @@ def build_with_pyinstaller():
         'pyinstaller',
         '--onefile',               # 单文件
         '--windowed',              # 无控制台窗口
-        '--name=商品采集工具v1.2',  # exe文件名
-        '--add-data=scraper.py;.',   # 将 scraper.py 打包到 exe 根目录
+        '--name=商品采集工具v1.4',  # exe文件名
+        '--add-data=data_1688/scraper.py;.',   # 将 scraper.py 打包到 exe 根目录
         '--add-data=update.py;.',    # 将 update.py 打包到 exe 根目录
         '--add-data=downloader.py;.',  # 将 downloader.py 打包到 exe 根目录
-        '--add-data=tokens.py;.',
-        '--add-data=goofish.py;.',
-        '--add-data=API.py;.'
+        '--add-data=goofish/tokens.py;.',
+        '--add-data=goofish/goofish.py;.',
+        '--add-data=data_1688/API.py;.',
+        '--add-data=data_1688/mind.py;.',
+        '--add-data=data_1688/tokens_1688.py;.',
         '--hidden-import=requests',
         '--hidden-import=jsonpath',
         '--hidden-import=csv',
@@ -64,7 +79,7 @@ def build_with_pyinstaller():
 
     if result.returncode == 0:
         print("\n✅ 打包成功！")
-        exe_path = os.path.join('dist', '商品采集工具v1.2.exe')
+        exe_path = os.path.join('dist', '商品采集工具v1.4.exe')
         if os.path.exists(exe_path):
             size = os.path.getsize(exe_path) / (1024 * 1024)
             print(f"📁 输出位置: {os.path.abspath(exe_path)}")
@@ -87,13 +102,12 @@ def main():
     clean_build()
     if build_with_pyinstaller():
         print("\n🎉 打包完成！")
-        print("📁 输出位置: dist/商品采集工具v1.2.exe")
+        print("📁 输出位置: dist/商品采集工具v1.4.exe")
         print("💡 双击即可运行，无需安装 Python")
     else:
         print("\n打包失败，请检查：")
         print("1. 是否安装 PyInstaller: pip install pyinstaller")
-        print("2. 所有依赖是否已安装: pip install requests jsonpath github_downloader")
-        print("3. github_downloader 模块是否存在（update.py 中使用了它）")
+        print("2. 所有依赖是否已安装: pip install requests jsonpath")
 
 if __name__ == '__main__':
     main()

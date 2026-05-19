@@ -16,7 +16,7 @@ def get_data(item_id):
         "Channel": "edge",
         "Content-Type": "application/json;charset=UTF-8",
         "Version": "3.7.4",
-        "Platform": "1688",
+        "Platform": "data_1688",
         "Origin": "chrome-extension://mdlcdgmcaceammhekheabondocjocike",
         "Sec-Fetch-Site": "none",
         "Sec-Fetch-Mode": "cors",
@@ -26,8 +26,8 @@ def get_data(item_id):
     }
 
     cookies = {
-        "m-info": '[{"platform":"1688","version":"3.7.4","browser":"edge","m":"bsfc","t":1778517676037}]',
-        "e-info": '[{"e-name":"1688","adid":"100","version":"3.7.4","ext_id":"80354"}]',
+        "m-info": '[{"platform":"data_1688","version":"3.7.4","browser":"edge","m":"bsfc","t":1778517676037}]',
+        "e-info": '[{"e-name":"data_1688","adid":"100","version":"3.7.4","ext_id":"80354"}]',
         "plugin_ext": "100",
         "language": "chinese",
         "province_code": "Guangdong",
@@ -58,6 +58,7 @@ def get_data(item_id):
         # 处理 UTF-8 BOM
         content = response.content.decode('utf-8-sig')
         result = json.loads(content)
+        # print(result)
         # print("获取成功，数据：")
         DaySaleNum_30s = []
         addTimes = []
@@ -66,9 +67,9 @@ def get_data(item_id):
         for i in range(len(DaySaleNum_30)):
             DaySaleNum_30s.append(int(DaySaleNum_30[i]))
             addTimes.append(addTime[i].split("(")[0])
-            # print(f"月代销：{DaySaleNum_30[i]}，上架时间：{addTime[i]}")
         return DaySaleNum_30s, addTimes
     else:
         print(f"请求失败，状态码：{response.status_code}")
         # 打印前500字符以便调试
         print("响应内容预览：", response.text[:500])
+# get_data("956227071588")

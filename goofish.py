@@ -71,14 +71,13 @@ class GoofishScraperCore:
             if not self.is_scraping:
                 break
 
-            # 构造 data（与原始脚本完全一致）
             data_str = '{"pageNumber":%d,"keyword":"%s","fromFilter":false,"rowsPerPage":30,"sortValue":"","sortField":"","customDistance":"","gps":"","propValueStr":{},"customGps":"","searchReqFromPage":"pcSearch","extraFilterValue":"{}","userPositionJson":"{}"}' % (page, keyword)
             data = {"data": data_str}
 
             params = {
                 "jsv": "2.7.2",
                 "appKey": "34839810",
-                "t": self.t,                      # 使用固定的时间戳
+                "t": self.t,
                 "sign": self.sign(self.t, data_str),
                 "v": "1.0",
                 "type": "originaljson",
